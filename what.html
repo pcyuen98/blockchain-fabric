@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Choosing and Starting a Fabric Sample with Docker Compose</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121b2d;
+      --panel-alt: #18243b;
+      --text: #eaf2ff;
+      --muted: #b7c7e6;
+      --accent: #5ac8fa;
+      --accent-2: #8ae7b1;
+      --border: #2a3b5d;
+      --code: #0d1729;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+    }
+    h1, h2, h3 {
+      color: var(--accent);
+      margin-top: 1.5em;
+    }
+    p, li {
+      color: var(--muted);
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px;
+      margin-top: 18px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.18);
+    }
+    code, pre {
+      font-family: "SFMono-Regular", Consolas, monospace;
+    }
+    pre {
+      background: var(--code);
+      color: #dfeeff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    a {
+      color: var(--accent-2);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+      background: var(--panel-alt);
+      border: 1px solid var(--border);
+    }
+    th, td {
+      text-align: left;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    th {
+      background: #121d32;
+      color: var(--accent);
+    }
+    .badge {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(90, 200, 250, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(90, 200, 250, 0.35);
+      font-size: 0.9em;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Best Fabric starting point with Docker Compose</h1>
+    <div class="badge">Recommended network: <strong>test-network</strong></div>
+
+    <div class="panel">
+      <p>
+        For the easiest Docker Compose-based <em>Fabric network</em> in this repository, start with
+        <strong><code>test-network</code></strong>. The root README identifies it as the local Compose network used by
+        the other samples. It has one peer in each of two organizations and a single Raft ordering service.
+        Its <code>network.sh</code> script generates identities and starts the Compose services in the right order.
+      </p>
+      <p>
+        The best first <em>application</em> to run on that network is <code>asset-transfer-basic</code>, which demonstrates
+        creating, reading, updating, and transferring ledger assets. It is not a standalone Compose network: it depends on
+        <code>test-network</code>. Start the network first, then deploy this sample's chaincode and run its client.
+      </p>
+    </div>
+
+    <h2>Why this is the easiest option</h2>
+    <div class="panel">
+      <ul>
+        <li>It is the repository's documented Docker Compose foundation for local Fabric development.</li>
+        <li><code>network.sh</code> selects the Compose files, generates cryptographic identities, and starts the containers.</li>
+        <li>It separates starting nodes, creating a channel, and deploying chaincode, so each stage can be verified.</li>
+        <li>It avoids hand-writing Compose configuration or mounting certificates manually.</li>
+      </ul>
+    </div>
+
+    <h2>Project summary</h2>
+    <div class="panel">
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Project</td>
+            <td><code>test-network</code></td>
+          </tr>
+          <tr>
+            <td>Type</td>
+            <td>Local Hyperledger Fabric development network</td>
+          </tr>
+          <tr>
+            <td>Bootstrap method</td>
+            <td><code>./network.sh up</code> (generates identities and runs Docker Compose)</td>
+          </tr>
+          <tr>
+            <td>Network size</td>
+            <td>Org1 and Org2, one peer per organization, and one Raft orderer</td>
+          </tr>
+          <tr>
+            <td>Best for</td>
+            <td>Learning, testing chaincode, local app development</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>How to set it up with Docker</h2>
+    <div class="panel">
+      <h3>1. Install prerequisites</h3>
+      <p>
+        Install Docker Engine or Docker Desktop with Compose, and install the Fabric sample binaries, configuration,
+        and matching container images using the official Fabric installation guide. The network checks that the local
+        Fabric CLI and peer image versions match. The chaincode example below also needs Go installed.
+      </p>
+      <pre>docker --version
+docker compose version</pre>
+      <p>
+        See <a href="https://hyperledger-fabric.readthedocs.io/en/latest/install.html">Install the Samples, Binaries, and Docker Images</a>
+        if <code>peer</code>, <code>config</code>, or the Fabric images are missing.
+      </p>
+
+      <h3>2. Open the test network directory</h3>
+      <pre>cd /path/to/fabric-samples/test-network</pre>
+
+      <h3>3. Start the network using the helper script</h3>
+      <p>
+        Run the helper rather than invoking a Compose file directly. It creates the organization certificates required by
+        the peer and orderer mounts before starting the services.
+      </p>
+      <pre>./network.sh up</pre>
+      <p>
+        The default uses Fabric cryptogen for local development identities and Compose files in
+        <code>test-network/compose</code>. To use Fabric Certificate Authorities instead, add <code>-ca</code> to the
+        network start command (the CA client binary and CA images must also be installed).
+      </p>
+
+      <h3>4. Create a channel</h3>
+      <pre>./network.sh createChannel -c mychannel</pre>
+      <p>
+        This creates the channel, joins both organization peers, and updates their anchor-peer configuration. If the
+        network is stopped, <code>createChannel</code> can also start it automatically.
+      </p>
+
+      <h3>5. Deploy a smart contract</h3>
+      <p>For example, to deploy the basic Go chaincode sample:</p>
+      <pre>./network.sh deployCC -c mychannel -ccn basic -ccp ../asset-transfer-basic/chaincode-go -ccl go</pre>
+      <p>
+        This packages the Go chaincode, installs it on both peers, gets both organizations to approve its definition,
+        and commits that definition to the channel. The sample client initializes the ledger when it runs.
+      </p>
+
+      <h3>6. Verify the containers are running</h3>
+      <pre>docker ps</pre>
+      <p>You should see <code>orderer.example.com</code>, <code>peer0.org1.example.com</code>, and
+        <code>peer0.org2.example.com</code>. A CA container appears only when the network was started with
+        <code>-ca</code>.</p>
+
+      <h3>7. Optional: interact with the network using peer CLI</h3>
+      <p>Set the environment for Org1 or Org2 and run Fabric CLI commands:</p>
+      <pre>export PATH="${PWD}/../bin:$PATH"
+export FABRIC_CFG_PATH="${PWD}/../config"
+export $(./setOrgEnv.sh Org1 | xargs)
+peer channel list
+peer chaincode list --installed</pre>
+
+      <h3>8. Stop and clean up</h3>
+      <pre>./network.sh down</pre>
+      <p>This stops the network and removes its volumes, including ledger data. Run it only when you are ready to discard
+        the local state.</p>
+    </div>
+
+    <h2>What the Docker Compose setup looks like</h2>
+    <div class="panel">
+      <p>
+        The actual Docker Compose files used by the project live in the following location:
+      </p>
+      <pre>test-network/compose/compose-test-net.yaml
+test-network/compose/docker/docker-compose-test-net.yaml</pre>
+      <p>
+        The first file defines the shared peer and orderer services; the Docker-specific overlay supplies Docker settings.
+        Optional Compose files add CouchDB or Certificate Authorities. <code>network.sh</code> chooses the appropriate
+        files and handles prerequisites. Running these YAML files by hand skips identity and channel setup and is not the
+        recommended first-time setup.
+      </p>
+    </div>
+
+    <h2>How the other Compose samples compare</h2>
+    <div class="panel">
+      <p>
+        The repository also contains Compose variants for the test network's BFT, CA, CouchDB, and Org3 configurations,
+        plus add-ons for external chaincode and blockchain exploration. These extend a configured network or solve a
+        narrower task rather than providing a simpler first Fabric setup.
+      </p>
+      <table>
+        <thead>
+          <tr><th>Sample</th><th>What Compose starts</th><th>Why it is not the easiest Fabric starting point</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>asset-transfer-basic</code></td>
+            <td>Its REST API Compose file starts a Node application and Redis.</td>
+            <td>It expects the <code>fabric_test</code> network and a deployed asset-transfer contract first.</td>
+          </tr>
+          <tr>
+            <td><code>token-sdk</code></td>
+            <td>Multiple issuer, auditor, owner, and supporting services.</td>
+            <td>It needs Fabric setup, token chaincode, generated keys, and additional Go dependencies.</td>
+          </tr>
+          <tr>
+            <td><code>token-sdk/explorer</code></td>
+            <td>Explorer and database services.</td>
+            <td>It expects the external <code>fabric_test</code> network and mounted connection-profile and crypto files.</td>
+          </tr>
+          <tr>
+            <td><code>asset-transfer-basic/chaincode-external</code></td>
+            <td>External chaincode service containers.</td>
+            <td>It requires an existing network and chaincode environment and is an advanced deployment pattern.</td>
+          </tr>
+          <tr>
+            <td><code>test-network/prometheus-grafana</code></td>
+            <td>Prometheus and Grafana monitoring services.</td>
+            <td>It monitors a test network that must already be running.</td>
+          </tr>
+          <tr>
+            <td><code>test-network-k8s</code></td>
+            <td>Kubernetes resources rather than a Docker Compose setup.</td>
+            <td>It adds Kubernetes and cluster configuration requirements.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Recommendation</h2>
+    <div class="panel">
+      <p>
+        For the simplest Compose-backed Fabric network, use <strong><code>test-network</code></strong>. For a beginner
+        end-to-end example after that network is ready, use <strong><code>asset-transfer-basic</code></strong>.
+      </p>
+      <p>
+        A concise setup is <strong><code>cd test-network &amp;&amp; ./network.sh up &amp;&amp; ./network.sh createChannel -c mychannel</code></strong>.
+      </p>
+      <p>
+        Continue with the <a href="test-network/tutorial.html">detailed test-network tutorial</a> to deploy chaincode and
+        exercise the sample application.
+      </p>
+    </div>
+  </div>
+</body>
+</html>

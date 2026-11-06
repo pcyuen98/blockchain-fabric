@@ -1,0 +1,4 @@
+scan this entire project and return which project easiest to setup using docker compose.
+
+explain in detail in what.html and how to set it up using docker.
+
