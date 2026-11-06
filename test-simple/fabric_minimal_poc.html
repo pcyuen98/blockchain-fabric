@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Minimal Hyperledger Fabric POC — Store One Asset</title>
+<style>body{font-family:Arial,sans-serif;max-width:1050px;margin:35px auto;padding:0 22px;color:#1e293b;line-height:1.55;background:#fff}h1{color:#123c68}h2{margin-top:32px;color:#174b7c}table{border-collapse:collapse;width:100%;margin:16px 0}th,td{border:1px solid #cbd5e1;padding:10px;text-align:left}th{background:#e8f1fa}tr:nth-child(even){background:#f8fafc}.diagram{overflow-x:auto;border:1px solid #cbd5e1;border-radius:10px;padding:16px;background:#fbfdff}pre{background:#f1f5f9;padding:18px;border-radius:8px;overflow-x:auto}.note{border-left:4px solid #2563eb;padding:12px 16px;background:#eff6ff}code{font-family:Consolas,monospace}small{color:#64748b}@media print{body{margin:12mm}.diagram{break-inside:avoid}}</style>
+</head><body>
+<h1>Minimal Hyperledger Fabric POC — Store One Asset</h1>
+<p><strong>Goal:</strong> Use the Fabric CLI to create and store one asset (<code>asset100</code>) on a single-organization Fabric network. No Java or Node.js client application is required.</p>
+<p><strong>Runtime:</strong> 3 Fabric containers (1 Peer, 1 Orderer, 1 Basic Chaincode runtime), with the <code>peer</code> CLI running on the host. LevelDB is embedded in the peer, not a separate container.</p>
+<h2>Sequence Diagram — CLI CreateAsset</h2>
+<div class="diagram"><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant CLI as Fabric CLI (host)
+    box Fabric POC - 3 Containers
+        participant P as Peer (7051)
+        participant CC as Basic Chaincode
+        participant O as Orderer (7050)
+    end
+    participant DB as Ledger / LevelDB (inside Peer)
+    CLI->>P: peer chaincode invoke - CreateAsset(asset100)
+    P->>CC: Simulate CreateAsset
+    CC-->>P: Read/write set
+    P-->>CLI: Signed endorsement
+    CLI->>O: Submit endorsed transaction
+    O-->>P: Deliver ordered block
+    P->>P: Validate endorsement and transaction
+    P->>DB: Append block and update world state
+    P-->>CLI: Commit event (with --waitForEvent)
+    Note over DB: asset100 persisted in peer storage</pre><p><small>The CLI invokes chaincode and submits the endorsed transaction. LevelDB stores current state; block files store the transaction history.</small></p></div>
+<h2>Minimum Components</h2>
+<table><thead><tr><th>Component</th><th>Containers</th><th>Purpose</th></tr></thead><tbody>
+<tr><td>Fabric CLI (host)</td><td>0</td><td>Issues <code>peer chaincode invoke</code> to create the asset</td></tr>
+<tr><td>Fabric Peer</td><td>1</td><td>Endorses, validates, commits, and stores the ledger</td></tr>
+<tr><td>Basic Chaincode</td><td>1</td><td>Implements <code>CreateAsset</code></td></tr>
+<tr><td>Fabric Orderer</td><td>1</td><td>Orders transactions into blocks</td></tr>
+<tr><td>LevelDB</td><td>0</td><td>Built into the peer; stores the current world state</td></tr>
+<tr><td>Certificate Authority</td><td>0</td><td>Not needed at runtime when certificates already exist</td></tr>
+<tr><td>Second Peer / Organization</td><td>0</td><td>Not needed for this single-organization POC</td></tr>
+</tbody></table>
+<h2>Example Asset</h2>
+<pre><code>{
+  "ID": "asset100",
+  "Color": "blue",
+  "Size": 10,
+  "Owner": "Alice",
+  "AppraisedValue": 500
+}</code></pre>
+<h2>CLI Command — Store One Asset</h2>
+<p>After setting the Fabric CLI environment variables for your peer, orderer, TLS certificates and admin identity, run:</p>
+<pre><code>peer chaincode invoke \
+  -o 127.0.0.1:7050 \
+  --ordererTLSHostnameOverride orderer.example.com \
+  --tls \
+  --cafile "$ORDERER_CA" \
+  -C mychannel \
+  -n basic \
+  --peerAddresses 127.0.0.1:7051 \
+  --tlsRootCertFiles "$CORE_PEER_TLS_ROOTCERT_FILE" \
+  -c '{"Args":["CreateAsset","asset100","blue","10","Alice","500"]}' \
+  --waitForEvent</code></pre>
+<p><small>Assumes a channel named <code>mychannel</code>, deployed <code>basic</code> chaincode, valid CLI credentials, and an endorsement policy satisfiable by this one peer. The addresses and TLS files must match your actual setup. This command is for the proposed one-peer POC, not necessarily the existing two-organization test network.</small></p>
+<h2>Where the Asset Is Stored</h2>
+<table><thead><tr><th>Data</th><th>Typical path inside peer container</th></tr></thead><tbody>
+<tr><td>Current asset state (LevelDB)</td><td><code>/var/hyperledger/production/ledgersData/stateLeveldb/</code></td></tr>
+<tr><td>Committed blockchain blocks</td><td><code>/var/hyperledger/production/ledgersData/chains/chains/mychannel/</code></td></tr>
+</tbody></table>
+<p class="note"><strong>Persistence:</strong> Mount <code>/var/hyperledger/production</code> on a persistent volume or bind mount. The ledger is stored by the peer, not the orderer or chaincode container.</p>
+<h2>POC Prerequisites</h2>
+<p>A one-organization channel must exist, the <code>basic</code> chaincode must be deployed, the peer must be joined to the channel, and its endorsement policy must permit endorsement by the single peer. Pre-generated MSP/TLS certificates are sufficient; no running CA container is needed.</p>
+<script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';mermaid.initialize({startOnLoad:true,theme:'default',securityLevel:'strict'});</script>
+</body></html>

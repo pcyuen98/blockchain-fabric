@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spring Boot Fabric Gateway Guide</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #526078;
+      --paper: #f4f7fb;
+      --panel: #fff;
+      --line: #d7dfeb;
+      --blue: #1457a6;
+      --code: #101a2b;
+      --green: #e8f6ee;
+      --amber: #fff5dc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 16px/1.65 system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    main { max-width: 1000px; margin: auto; padding: 32px 20px 60px; }
+    h1, h2, h3 { line-height: 1.25; }
+    h1 { font-size: clamp(2rem, 5vw, 3rem); margin: 10px 0; }
+    h2 { margin-top: 2em; color: var(--blue); }
+    p, li { color: var(--muted); }
+    a { color: var(--blue); }
+    .lead, section, .callout {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin: 18px 0;
+    }
+    .lead { border-top: 5px solid var(--blue); }
+    .callout.success { background: var(--green); }
+    .callout.warning { background: var(--amber); }
+    .eyebrow { color: var(--blue); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    code { overflow-wrap: anywhere; }
+    pre {
+      background: var(--code);
+      color: #eef4ff;
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    pre code { color: inherit; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    th, td { border: 1px solid var(--line); padding: 10px 12px; text-align: left; vertical-align: top; }
+    th { background: #edf2f8; }
+    .small { font-size: .94rem; }
+    @media (max-width: 600px) {
+      main { padding: 20px 12px 40px; }
+      section, .lead, .callout { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header class="lead">
+    <div class="eyebrow">Local development walkthrough</div>
+    <h1>Run the Fabric Gateway Spring Boot app</h1>
+    <p>
+      This sample connects a Java Spring Boot REST service to the local Fabric test network using the
+      Fabric Gateway client. It demonstrates evaluating read-only transactions and submitting ledger writes
+      against the Asset Transfer chaincode.
+    </p>
+    <p class="small">
+      Commands assume the repository is at <code>/path/to/fabric-samples</code>. Replace that path as needed.
+      The test network and its development identities are for local learning, not production.
+    </p>
+  </header>
+
+  <h2>1. Prerequisites</h2>
+  <section>
+    <ul>
+      <li>Docker Engine or Docker Desktop with Compose, or the Docker-compatible Podman setup shown in your terminal.</li>
+      <li>Fabric binaries, configuration, and container images installed for the repository's Fabric version.</li>
+      <li>Java 17 or newer and Maven 3.8 or newer.</li>
+      <li>Go and <code>jq</code> if you need to deploy the example chaincode.</li>
+    </ul>
+    <pre><code>docker --version
+docker compose version
+java -version
+mvn -version</code></pre>
+    <p>
+      The Fabric Gateway client runs on the host and connects to Org1's published peer endpoint
+      <code>localhost:7051</code>. It reads the Org1 development certificate and private key generated in
+      <code>test-network/organizations</code>.
+    </p>
+  </section>
+
+  <h2>2. Start the Fabric network and deploy chaincode</h2>
+  <section>
+    <p>In one terminal, start the network, create <code>mychannel</code>, and deploy the Go Asset Transfer contract:</p>
+    <pre><code>cd /path/to/fabric-samples/test-network
+./network.sh up
+./network.sh createChannel -c mychannel
+./network.sh deployCC \
+  -c mychannel \
+  -ccn basic \
+  -ccp ../asset-transfer-basic/chaincode-go \
+  -ccl go</code></pre>
+    <p>
+      Wait for chaincode deployment to finish successfully. If you already created the channel using
+      <code>./network.sh createChannel -c mychannel</code>, keep it and deploy the chaincode; do not recreate
+      the channel. The app expects the channel name <code>mychannel</code>, chaincode name <code>basic</code>,
+      and the Org1 peer at <code>localhost:7051</code>.
+    </p>
+  </section>
+
+  <h2>3. Build and start Spring Boot</h2>
+  <section>
+    <p>In a second terminal, run the following from the application directory:</p>
+    <pre><code>cd /path/to/fabric-samples/test-network/spring-boot-fabric-gateway
+mvn clean package
+mvn spring-boot:run</code></pre>
+    <p>
+      Maven downloads the application dependencies, compiles the service, and starts it on
+      <code>http://localhost:8080</code>. Keep this terminal open while testing. The application uses the
+      generated Org1 <code>User1</code> identity and TLS certificate from the local test network.
+    </p>
+    <div class="callout warning">
+      <strong>Run from this directory.</strong> The default certificate path in
+      <code>src/main/resources/application.properties</code> is relative to
+      <code>spring-boot-fabric-gateway</code>. Starting Maven elsewhere may cause a missing certificate or key error.
+    </div>
+  </section>
+
+  <h2>4. Check the service</h2>
+  <section>
+    <pre><code>curl -i http://localhost:8080/api/health</code></pre>
+    <p>A running service returns HTTP 200 and:</p>
+    <pre><code>{"status":"UP"}</code></pre>
+    <p>This endpoint checks that Spring Boot is responding; the transaction examples below additionally verify the
+      Gateway connection, channel, and deployed chaincode.</p>
+  </section>
+
+  <h2>5. Submit and evaluate ledger transactions</h2>
+  <section>
+    <h3>Initialize the sample ledger</h3>
+    <pre><code>curl -i -X POST http://localhost:8080/api/assets/init</code></pre>
+    <p>The response confirms that <code>InitLedger</code> was submitted. The sample function creates its initial
+      assets; call it once on a fresh ledger. Repeating it can fail because those asset IDs already exist.</p>
+
+    <h3>Read all assets</h3>
+    <pre><code>curl -i http://localhost:8080/api/assets</code></pre>
+
+    <h3>Create an asset (write)</h3>
+    <pre><code>curl -i -X POST http://localhost:8080/api/assets \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "id": "spring-asset-001",
+    "color": "green",
+    "size": "5",
+    "owner": "alice",
+    "appraisedValue": "400"
+  }'</code></pre>
+
+    <h3>Read the asset (evaluate)</h3>
+    <pre><code>curl -i http://localhost:8080/api/assets/spring-asset-001</code></pre>
+
+    <h3>Transfer the asset (write)</h3>
+    <pre><code>curl -i -X PUT http://localhost:8080/api/assets/spring-asset-001/transfer \
+  -H 'Content-Type: application/json' \
+  -d '{"newOwner":"bob"}'</code></pre>
+    <p>Read the asset again to confirm that its owner is now <code>bob</code>.</p>
+  </section>
+
+  <h2>6. API reference and troubleshooting</h2>
+  <section>
+    <table>
+      <thead><tr><th>Method and path</th><th>Gateway transaction</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>GET /api/health</code></td><td>None</td><td>Check Spring Boot is running</td></tr>
+        <tr><td><code>POST /api/assets/init</code></td><td><code>InitLedger</code></td><td>Submit initial sample assets</td></tr>
+        <tr><td><code>GET /api/assets</code></td><td><code>GetAllAssets</code></td><td>Evaluate and list assets</td></tr>
+        <tr><td><code>GET /api/assets/{id}</code></td><td><code>ReadAsset</code></td><td>Evaluate one asset</td></tr>
+        <tr><td><code>POST /api/assets</code></td><td><code>CreateAsset</code></td><td>Submit an asset creation</td></tr>
+        <tr><td><code>PUT /api/assets/{id}/transfer</code></td><td><code>TransferAsset</code></td><td>Submit an ownership transfer</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li><strong>Connection refused:</strong> confirm the test network is running and Org1 peer port <code>7051</code> is available.</li>
+      <li><strong>Missing certificate or private key:</strong> start Maven from the application directory and confirm the network generated <code>test-network/organizations/peerOrganizations/org1.example.com</code>.</li>
+      <li><strong>Channel or chaincode not found:</strong> check that <code>mychannel</code> exists and the <code>basic</code> contract deployment completed.</li>
+      <li><strong>Duplicate asset:</strong> use a new asset ID or read the existing ledger state; do not submit <code>InitLedger</code> repeatedly.</li>
+    </ul>
+  </section>
+
+  <h2>7. Stop the services</h2>
+  <section>
+    <p>Stop Spring Boot with <kbd>Ctrl+C</kbd> in its terminal. When finished with the network, stop and remove its
+      containers and volumes from <code>test-network</code>:</p>
+    <pre><code>cd /path/to/fabric-samples/test-network
+./network.sh down</code></pre>
+    <div class="callout warning">
+      <strong>Data removal:</strong> <code>network.sh down</code> removes the local peer ledger data and generated
+      network artifacts. Do not run it if you want to keep the current ledger.
+    </div>
+  </section>
+
+  <p class="small">
+    See the <a href="./spring-boot-fabric-gateway/README.md">application README</a> for project details and
+    the <a href="./tutorial.html">test-network tutorial</a> for the broader Fabric network workflow.
+  </p>
+</main>
+</body>
+</html>
