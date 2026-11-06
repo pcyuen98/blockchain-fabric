@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How to Use the Minimal Fabric CLI POC</title>
+  <style>
+    body { max-width: 900px; margin: 2rem auto; padding: 0 1rem; color: #1f2937; font: 16px/1.6 Arial, sans-serif; }
+    h1, h2 { color: #174b7c; }
+    pre { overflow-x: auto; padding: 1rem; border-radius: 6px; background: #f1f5f9; }
+    code { font-family: Consolas, monospace; }
+    .note { border-left: 4px solid #2563eb; padding: .7rem 1rem; background: #eff6ff; }
+  </style>
+</head>
+<body>
+  <h1>How to Start and Use the Minimal Fabric POC</h1>
+  <p>This is a CLI-only Hyperledger Fabric network: one Org1 peer, one Raft orderer, and the Basic Go asset chaincode. Fabric CLI binaries run on the host. Docker Compose starts the Fabric services; no CA, CouchDB, Java, or client application is used.</p>
+
+  <h2>Prerequisites</h2>
+  <ul>
+    <li>Linux or macOS with Bash, Docker Engine, and Docker Compose v2.</li>
+    <li>Fabric 2.5 CLI binaries (<code>peer</code>, <code>configtxgen</code>, <code>cryptogen</code>, and <code>osnadmin</code>) in the repository's <code>bin/</code> directory, and Fabric configuration in <code>config/</code>.</li>
+    <li>The Basic Go chaincode source in <code>../asset-transfer-basic/chaincode-go</code>.</li>
+    <li><code>jq</code> and <code>curl</code>.</li>
+  </ul>
+  <p>If the Fabric binaries, configuration, or images are not installed yet, run this once from the repository root:</p>
+  <pre><code>./install-fabric.sh --fabric-version 2.5.16 binary docker</code></pre>
+  <p>The network script uses pre-generated certificates when present; otherwise it creates the one-peer/one-orderer certificates with <code>cryptogen</code>.</p>
+
+  <h2>Start the network</h2>
+  <pre><code>cd test-simple
+./network.sh up</code></pre>
+  <p><code>up</code> starts the peer and orderer, creates the default <code>mychannel</code> channel, joins the peer, and installs/approves/commits the <code>basic</code> chaincode. It is safe to run again; an existing channel, chaincode definition, and ledger are preserved. The POC uses host ports 17050 (orderer), 17051 (peer), and 17053 (orderer admin) so it can run alongside an existing Fabric test network. Set a different channel with <code>CHANNEL_NAME=mychannel2 ./network.sh up</code>, or override a host port with <code>PEER_PORT=27051 ./network.sh up</code>.</p>
+
+  <h2>Create, read, update, and delete an asset</h2>
+  <p>Commands use the host Fabric CLI and submit transactions to the peer. Asset size and appraised value must be non-negative integers.</p>
+  <pre><code>./network.sh create asset100 blue 10 Alice 500
+./network.sh query asset100
+./network.sh update asset100 green 12 Bob 750
+./network.sh query asset100
+./network.sh delete asset100
+./network.sh query asset100</code></pre>
+  <p><code>create</code> and <code>update</code> take an ID, color, size, owner, and appraised value. <code>delete</code> and <code>query</code> take an asset ID. The final query should report that the deleted asset does not exist.</p>
+
+  <h2>Restart and stop</h2>
+  <pre><code>./network.sh restart
+./network.sh down</code></pre>
+  <p><code>restart</code> restarts the running services, then verifies the channel and chaincode without discarding ledger data. <code>down</code> stops the containers but retains named volumes; running <code>./network.sh up</code> later resumes the same ledger.</p>
+
+  <p class="note"><strong>Persistence:</strong> The peer's named Docker volume stores the ledger and world state. Do not remove Compose volumes if you need to keep assets. This single-organization setup is for local development and POC use, not production.</p>
+</body>
+</html>

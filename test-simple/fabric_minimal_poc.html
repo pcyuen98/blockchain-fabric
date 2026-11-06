@@ -10,9 +10,9 @@
     autonumber
     participant CLI as Fabric CLI (host)
     box Fabric POC - 3 Containers
-        participant P as Peer (7051)
+        participant P as Peer (17051)
         participant CC as Basic Chaincode
-        participant O as Orderer (7050)
+        participant O as Orderer (17050)
     end
     participant DB as Ledger / LevelDB (inside Peer)
     CLI->>P: peer chaincode invoke - CreateAsset(asset100)
@@ -46,13 +46,13 @@
 <h2>CLI Command — Store One Asset</h2>
 <p>After setting the Fabric CLI environment variables for your peer, orderer, TLS certificates and admin identity, run:</p>
 <pre><code>peer chaincode invoke \
-  -o 127.0.0.1:7050 \
+  -o 127.0.0.1:17050 \
   --ordererTLSHostnameOverride orderer.example.com \
   --tls \
   --cafile "$ORDERER_CA" \
   -C mychannel \
   -n basic \
-  --peerAddresses 127.0.0.1:7051 \
+  --peerAddresses 127.0.0.1:17051 \
   --tlsRootCertFiles "$CORE_PEER_TLS_ROOTCERT_FILE" \
   -c '{"Args":["CreateAsset","asset100","blue","10","Alice","500"]}' \
   --waitForEvent</code></pre>

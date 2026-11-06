@@ -13,4 +13,5 @@ organizations/ordererOrganizations/*
 organizations/peerOrganizations/*
 system-genesis-block/*
 *.tar.gz
+minimal-artifacts/
 log.txt
